@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="stylesheet" href="./resources/ol.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link href="resources/ol-geocoder.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="./resources/ol-layerswitcher.css" />
+    <link rel="stylesheet" href="./resources/qgis2web.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      html,
+      body {
+        background-color: #ffffff;
+      }
+      .ol-control > * {
+        background-color: #f8f8f8 !important;
+        color: #444444 !important;
+        border-radius: 0px;
+      }
+      .ol-attribution a,
+      .gcd-gl-input::placeholder,
+      .search-layer-input-search::placeholder {
+        color: #444444 !important;
+      }
+      .search-layer-input-search {
+        background-color: #f8f8f8 !important;
+      }
+      .ol-control > *:focus,
+      .ol-control > *:hover {
+        background-color: rgba(248, 248, 248, 0.7) !important;
+      }
+      .ol-control {
+        background-color: rgba(255, 255, 255, 0.4) !important;
+        padding: 2px !important;
+      }
+
+      html,
+      body,
+      #map {
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+      }
+      /* Supaya map tidak ketutup navbar */
+      #map {
+        position: absolute;
+        top: 4rem; /* tingginya navbar */
+        bottom: 0;
+        left: 0;
+        right: 0;
+        transition: left 0.3s ease;
+      }
+
+      /* Adjust map padding when panel is active */
+      #map.panel-active {
+        left: 320px;
+        transition: left 0.3s ease;
+      }
+
+      /* Legend Panel Styles */
+      #legend-panel {
+        position: fixed;
+        top: 4rem;
+        left: -320px;
+        width: 320px;
+        height: calc(100% - 4rem);
+        background-color: white;
+        z-index: 20;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+        transition: left 0.3s ease;
+      }
+
+      #legend-panel.active {
+        left: 0;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .legend-symbol {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .legend-text {
+        flex: 1;
+      }
+
+      /* Update toggle panel button to slide with the map or hide when panel is open */
+      #toggle-panel {
+        position: fixed;
+        top: 4.5rem;
+        left: 1rem; /* Adjusted from 50px */
+        z-index: 30;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: left 0.3s ease, opacity 0.3s ease; /* Add opacity transition */
+      }
+
+      #toggle-panel.hidden-button { /* New class to hide button when panel is active */
+         opacity: 0;
+         pointer-events: none; /* Disable clicks when hidden */
+      }
+
+
+      /* Updated toggle all layers button to be fixed */
+      #toggle-all-layers {
+        position: fixed;
+        top: 4.5rem;
+        right: 1rem; /* Adjusted from 80px to avoid clash with map controls, or adjust as needed */
+        z-index: 30;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: right 0.3s ease; /* Add transition for right property */
+      }
+
+      #toggle-all-layers.active {
+        background-color: #e0f3ff;
+        border-color: #3b82f6;
+      }
+
+      /* When panel is active, adjust the position of toggle-all-layers button */
+      /* This selector ensures it only applies when map has panel-active class */
+      #map.panel-active ~ #toggle-all-layers {
+         right: calc(1rem + 320px); /* Move it left by the panel width + some margin */
+      }
+
+      /* Add styles for button hover effect */
+      #toggle-panel:hover,
+      #toggle-all-layers:hover {
+        background-color: #f0f0f0;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+      }
+    </style>
+
+    <title>Peta Mitigasi Gempa</title>
+  </head>
+  <body>
+    <nav class="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center space-x-3">
+            <div
+              class="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-full"
+            >
+              <i class="fas fa-mountain text-xl"></i>
+            </div>
+            <span
+              class="font-bold text-2xl text-gray-800"
+              >Peta Mitigasi Gempa</span
+            >
+          </div>
+          <div class="hidden md:flex space-x-8">
+            <a
+              href="index.html"
+              class="text-gray-700 hover:text-blue-600 hover:border-b-2 hover:border-blue-600 py-1 transition duration-150"
+              >Beranda</a
+            >
+            <a
+              href="peta.html"
+              class="text-blue-600 font-medium border-b-2 border-blue-600 py-1"
+              >Peta</a
+            >
+            <a
+              href="tentang.html"
+              class="text-gray-700 hover:text-blue-600 hover:border-b-2 hover:border-blue-600 py-1 transition duration-150"
+              >Tentang</a
+            >
+            <a
+              href="analisisSIG.pdf"
+              class="text-gray-700 hover:text-blue-600 hover:border-b-2 hover:border-blue-600 py-1 transition duration-150 flex items-center"
+              ><i class="fas fa-file-pdf mr-2 text-red-800"></i>Unduh PDF</a
+            >
+          </div>
+          <div class="md:hidden flex items-center space-x-4">
+            <button
+              id="toggle-panel-mobile"
+              class="text-gray-700 hover:text-blue-600"
+            >
+              <i class="fas fa-info-circle text-xl"></i>
+            </button>
+            <button
+              id="mobile-menu-button"
+              class="text-gray-700 hover:text-blue-600"
+            >
+              <i class="fas fa-bars text-xl"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="mobile-menu" class="hidden md:hidden bg-white shadow-md">
+        <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+          <a
+            href="index.html"
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+            >Beranda</a
+          >
+          <a
+            href="peta.html"
+            class="block px-3 py-2 rounded-md text-base font-medium text-blue-600 bg-gray-50"
+            >Peta</a
+          >
+          <a
+            href="tentang.html"
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+            >Tentang</a
+          >
+          <a
+            href="analisisSIG.pdf"
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 flex items-center"
+            ><i class="fas fa-file-pdf mr-2 text-red-800"></i>Unduh PDF</a
+          >
+          <button
+            id="toggle-all-layers-mobile"
+            class="w-full block text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+          >
+            <i class="fas fa-layer-group mr-2"></i
+            ><span id="toggle-layers-text-mobile">Sembunyikan Semua Layer</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+    <button id="toggle-panel" class="hidden md:block">
+      <i class="fas fa-info-circle mr-2"></i>Legenda & Informasi
+    </button>
+
+    <button id="toggle-all-layers" class="hidden md:block">
+      <i class="fas fa-layer-group mr-2"></i
+      ><span id="toggle-layers-text">Sembunyikan Semua Layer</span>
+    </button>
+
+    <div id="legend-panel">
+      <div class="p-4">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-gray-800">Legenda & Informasi</h2>
+          <button id="close-panel" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">Tentang Peta</h3>
+          <p class="text-gray-600 mb-4">
+            Peta ini menampilkan informasi mitigasi gempa bumi di wilayah Tanah
+            Datar dan Padang Panjang. Data yang disajikan meliputi patahan
+            aktif, zona megathrust, kawasan rawan gempa, dan fasilitas penting.
+          </p>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">
+            Seismik & Tektonik
+          </h3>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="width: 20px; height: 4px; background-color: purple"
+              ></div>
+            </div>
+            <div class="legend-text">Megathrust</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="width: 20px; height: 4px; background-color: orange"
+              ></div>
+            </div>
+            <div class="legend-text">Patahan Aktif</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <i class="fas fa-dot-circle text-green-500"></i>
+            </div>
+            <div class="legend-text">Titik Gempa</div>
+          </div>
+        </div>
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">
+            Kawasan Rawan Gempa
+          </h3>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 20px;
+                  height: 20px;
+                  background-color: rgba(54, 212, 86, 0.504);
+                  border: 1px solid rgba(35, 35, 35, 0.504);
+                "
+              ></div>
+            </div>
+            <div class="legend-text">
+              Kawasan Rawan Bencana Gempabumi Tinggi
+            </div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 20px;
+                  height: 20px;
+                  background-color: rgba(50, 106, 239, 0.504);
+                  border: 1px solid rgba(35, 35, 35, 0.504);
+                "
+              ></div>
+            </div>
+            <div class="legend-text">
+              Kawasan Rawan Bencana Gempabumi Menengah
+            </div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 20px;
+                  height: 20px;
+                  background-color: rgba(235, 139, 216, 0.504);
+                  border: 1px solid rgba(35, 35, 35, 0.504);
+                "
+              ></div>
+            </div>
+            <div class="legend-text">
+              Kawasan Rawan Bencana Gempabumi Rendah
+            </div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 20px;
+                  height: 20px;
+                  background-color: rgba(210, 172, 84, 0.504);
+                  border: 1px solid rgba(35, 35, 35, 0.504);
+                "
+              ></div>
+            </div>
+            <div class="legend-text">Default</div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">
+            Fasilitas Penting
+          </h3>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 12px;
+                  height: 12px;
+                  background-color: purple;
+                  border-radius: 50%;
+                "
+              ></div>
+            </div>
+            <div class="legend-text">SARANA IBADAH</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 12px;
+                  height: 12px;
+                  background-color: orange;
+                  border-radius: 50%;
+                "
+              ></div>
+            </div>
+            <div class="legend-text">RUMAH SAKIT</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 12px;
+                  height: 12px;
+                  background-color: green;
+                  border-radius: 50%;
+                "
+              ></div>
+            </div>
+            <div class="legend-text">PUSKESMAS</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 12px;
+                  height: 12px;
+                  background-color: pink;
+                  border-radius: 50%;
+                "
+              ></div>
+            </div>
+            <div class="legend-text">PENDIDIKAN</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 12px;
+                  height: 12px;
+                  background-color: blue;
+                  border-radius: 50%;
+                "
+              ></div>
+            </div>
+            <div class="legend-text">AIRPORT</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div
+                style="
+                  width: 12px;
+                  height: 12px;
+                  background-color: black;
+                  border-radius: 50%;
+                "
+              ></div>
+            </div>
+            <div class="legend-text">SPBU</div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">
+            Informasi Gempa
+          </h3>
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div class="flex flex-col">
+                <div
+                  style="height: 4px; width: 20px; background-color: brown"
+                ></div>
+                <div
+                  style="height: 4px; width: 20px; background-color: red"
+                ></div>
+                <div
+                  style="height: 4px; width: 20px; background-color: brown"
+                ></div>
+              </div>
+            </div>
+            <div class="legend-text">Radius Gempa</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div class="flex flex-col">
+                <div
+                  style="height: 4px; width: 20px; background-color: yellow"
+                ></div>
+                <div
+                  style="height: 4px; width: 20px; background-color: orange"
+                ></div>
+                <div
+                  style="height: 4px; width: 20px; background-color: red"
+                ></div>
+              </div>
+            </div>
+            <div class="legend-text">Magnitudo (Rendah-Tinggi)</div>
+          </div>
+
+          <div class="legend-item">
+            <div class="legend-symbol">
+              <div class="flex flex-col">
+                <div
+                  style="height: 4px; width: 20px; background-color: lightblue"
+                ></div>
+                <div
+                  style="height: 4px; width: 20px; background-color: blue"
+                ></div>
+                <div
+                  style="height: 4px; width: 20px; background-color: darkblue"
+                ></div>
+              </div>
+            </div>
+            <div class="legend-text">Kedalaman (Dangkal-Dalam)</div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">
+            Panduan Penggunaan
+          </h3>
+          <ul class="list-disc pl-5 text-gray-600">
+            <li class="mb-1">
+              Gunakan tombol + dan - untuk memperbesar/memperkecil peta
+            </li>
+            <li class="mb-1">
+              Aktifkan/nonaktifkan layer dengan tombol layer di pojok kanan atas
+            </li>
+            <li class="mb-1">
+              Gunakan tombol "Sembunyikan/Tampilkan Semua Layer" untuk mengelola
+              semua layer sekaligus
+            </li>
+            <li class="mb-1">
+              Klik pada titik gempa untuk melihat informasi detailnya
+            </li>
+            <li class="mb-1">
+              Klik pada fasilitas untuk melihat informasi fasilitas tersebut
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="map">
+      <div id="popup" class="ol-popup">
+        <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+        <div id="popup-content"></div>
+      </div>
+    </div>
+    <script src="resources/qgis2web_expressions.js"></script>
+    <script src="resources/proj4.js"></script>
+    <script>
+      proj4.defs(
+        "EPSG:23832",
+        "+proj=tmerc +lat_0=0 +lon_0=100.5 +k=0.9999 +x_0=200000 +y_0=1500000 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+      );
+    </script>
+    <script src="./resources/functions.js"></script>
+    <script src="./resources/ol.js"></script>
+    <script src="./resources/ol-layerswitcher.js"></script>
+    <script src="resources/ol-geocoder.js"></script>
+    <script src="layers/megathrust_3.js"></script>
+    <script src="layers/Patahan_4.js"></script>
+    <script src="layers/KawasanRawanGempa_5.js"></script>
+    <script src="layers/BatasAdministrativeTanahDatar_6.js"></script>
+    <script src="layers/BatasAdminisrativePadangpanjang_7.js"></script>
+    <script src="layers/SPBU_PT_50K_8.js"></script>
+    <script src="layers/AIRPORT_PT_50K_9.js"></script>
+    <script src="layers/PENDIDIKAN_PT_50K_10.js"></script>
+    <script src="layers/PUSKESMAS_PT_50K_11.js"></script>
+    <script src="layers/RUMAHSAKIT_PT_50K_12.js"></script>
+    <script src="layers/SARANAIBADAH_PT_50K_13.js"></script>
+    <script src="layers/Ekonomi_dan_belanja_14.js"></script>
+    <script src="layers/Kesehatan_15.js"></script>
+    <script src="layers/olahragadanrekreasi_16.js"></script>
+    <script src="layers/pemerintahan_17.js"></script>
+    <script src="layers/pendidikan_18.js"></script>
+    <script src="layers/tempatIbadah_19.js"></script>
+    <script src="layers/transportasi_20.js"></script>
+    <script src="layers/wisataBudaya_21.js"></script>
+    <script src="layers/Radius_22.js"></script>
+    <script src="layers/Kedalaman_23.js"></script>
+    <script src="layers/Magnetude_24.js"></script>
+    <script src="layers/Data_Gempa_25.js"></script>
+    <script src="styles/megathrust_3_style.js"></script>
+    <script src="styles/Patahan_4_style.js"></script>
+    <script src="styles/KawasanRawanGempa_5_style.js"></script>
+    <script src="styles/BatasAdministrativeTanahDatar_6_style.js"></script>
+    <script src="styles/BatasAdminisrativePadangpanjang_7_style.js"></script>
+    <script src="styles/SPBU_PT_50K_8_style.js"></script>
+    <script src="styles/AIRPORT_PT_50K_9_style.js"></script>
+    <script src="styles/PENDIDIKAN_PT_50K_10_style.js"></script>
+    <script src="styles/PUSKESMAS_PT_50K_11_style.js"></script>
+    <script src="styles/RUMAHSAKIT_PT_50K_12_style.js"></script>
+    <script src="styles/SARANAIBADAH_PT_50K_13_style.js"></script>
+    <script src="styles/Ekonomi_dan_belanja_14_style.js"></script>
+    <script src="styles/Kesehatan_15_style.js"></script>
+    <script src="styles/olahragadanrekreasi_16_style.js"></script>
+    <script src="styles/pemerintahan_17_style.js"></script>
+    <script src="styles/pendidikan_18_style.js"></script>
+    <script src="styles/tempatIbadah_19_style.js"></script>
+    <script src="styles/transportasi_20_style.js"></script>
+    <script src="styles/wisataBudaya_21_style.js"></script>
+    <script src="styles/Radius_22_style.js"></script>
+    <script src="styles/Kedalaman_23_style.js"></script>
+    <script src="styles/Magnetude_24_style.js"></script>
+    <script src="styles/Data_Gempa_25_style.js"></script>
+    <script src="./layers/layers.js" type="text/javascript"></script>
+    <script src="./resources/Autolinker.min.js"></script>
+    <script src="./resources/qgis2web.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Panel toggle functionality
+        const map = document.getElementById("map");
+        const legendPanel = document.getElementById("legend-panel");
+        const togglePanelBtn = document.getElementById("toggle-panel");
+        const togglePanelMobileBtn = document.getElementById(
+          "toggle-panel-mobile"
+        );
+        const closePanelBtn = document.getElementById("close-panel");
+        const mobileMenuBtn = document.getElementById("mobile-menu-button");
+        const mobileMenu = document.getElementById("mobile-menu");
+        const toggleAllLayersBtn = document.getElementById("toggle-all-layers");
+        const toggleAllLayersMobileBtn = document.getElementById(
+          "toggle-all-layers-mobile"
+        );
+        const toggleLayersText = document.getElementById("toggle-layers-text");
+        const toggleLayersTextMobile = document.getElementById(
+          "toggle-layers-text-mobile"
+        );
+
+        // Variables to track layer visibility state
+        let allLayersVisible = true;
+
+        // Function to toggle panel
+        function togglePanel() {
+          legendPanel.classList.toggle("active");
+          map.classList.toggle("panel-active");
+
+          // Hide or show the main toggle panel button
+          togglePanelBtn.classList.toggle("hidden-button", legendPanel.classList.contains("active"));
+
+          // Adjust the position of the toggle-all-layers button
+          // This ensures it moves when the panel is active
+          if (legendPanel.classList.contains("active")) {
+              toggleAllLayersBtn.style.right = "calc(1rem + 320px)";
+          } else {
+              toggleAllLayersBtn.style.right = "1rem";
+          }
+        }
+
+        // Function to toggle all layers visibility (updated for OpenLayers map instance)
+        // This function will be properly defined once window.map is available
+        let toggleAllLayers = function() {
+            console.warn("toggleAllLayers function not fully initialized yet. Waiting for map.");
+        }; // Initial dummy function
+
+        // Add event listeners for panel toggle (these don't depend on olMap being fully loaded)
+        togglePanelBtn.addEventListener("click", togglePanel);
+        togglePanelMobileBtn.addEventListener("click", togglePanel);
+        closePanelBtn.addEventListener("click", togglePanel);
+
+
+        // Mobile menu toggle
+        mobileMenuBtn.addEventListener("click", function () {
+          mobileMenu.classList.toggle("hidden");
+        });
+
+        // Initialize the toggle all layers functionality after the map is fully loaded
+        // We need to wait for the map and layers to be initialized
+        const waitForMap = setInterval(function () {
+          if (window.map && window.lyr_megathrust_3) { // Check for a specific layer to confirm map is ready
+            // Get reference to OpenLayers map
+            const olMap = window.map;
+
+            // Define the actual toggleAllLayers function
+            toggleAllLayers = function () {
+              const layers = olMap.getLayers().getArray();
+
+              // Toggle all layers, skipping base layers if they exist and are marked as such
+              layers.forEach(function (layer) {
+                // You might want to exclude base layers if they are part of olMap.getLayers()
+                // if (layer.get('type') === 'base') return;
+                if (layer) {
+                  layer.setVisible(allLayersVisible ? false : true);
+                }
+              });
+
+              // Toggle state
+              allLayersVisible = !allLayersVisible;
+
+              // Update button text
+              toggleLayersText.textContent = allLayersVisible
+                ? "Sembunyikan Semua Layer"
+                : "Tampilkan Semua Layer";
+              if (toggleLayersTextMobile) {
+                toggleLayersTextMobile.textContent = allLayersVisible
+                  ? "Sembunyikan Semua Layer"
+                  : "Tampilkan Semua Layer";
+              }
+
+              // Update button style
+              toggleAllLayersBtn.classList.toggle("active", !allLayersVisible);
+            };
+
+            // Assign the function to the global scope if needed elsewhere (though not explicitly used in HTML click handlers)
+            window.toggleAllLayers = toggleAllLayers;
+
+            // Now that toggleAllLayers is properly defined, add its event listeners
+            toggleAllLayersBtn.addEventListener("click", toggleAllLayers);
+            if (toggleAllLayersMobileBtn) {
+              toggleAllLayersMobileBtn.addEventListener("click", toggleAllLayers);
+            }
+
+            clearInterval(waitForMap); // Stop the interval once the map is ready
+          }
+        }, 500); // Check every 500ms
+      });
+    </script>
+  </body>
+</html>
