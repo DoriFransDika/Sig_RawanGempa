@@ -311,6 +311,16 @@ Proyek ini dibuat untuk keperluan akademik dan edukasi. Tambahkan berkas `LICENS
 
 **🧡 Dibuat untuk meningkatkan kesiapsiagaan terhadap bencana gempa bumi 🧡**
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=E8704A&height=110&section=footer" width="100%" alt="footer"/>
 
+
+
+**Dori Frans Dika** — Informatics Engineering graduate, Institut Teknologi Padang
+<br/>
+
+[LinkedIn](https://www.linkedin.com/in/USERNAME-ANDA) · [GitHub](https://github.com/DoriFransDika) · [Portfolio](https://LINK-PORTFOLIO-ANDA) · [dorifransdikaa@gmail.com](mailto:dorifransdikaa@gmail.com)
+
+</div>
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<div align="center">
+  <img src="images/footer.svg" alt="Footer SIG Rawan Gempa" width="100%"/>
 </div>
